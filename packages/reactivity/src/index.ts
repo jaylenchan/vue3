@@ -1,3 +1,1 @@
-const reactivity = {}
-
-export { reactivity }
+export { reactive, shallowReactive, readonly, shallowReadonly } from './reactive'

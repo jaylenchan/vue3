@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reactive</title>
+  <script src="../node_modules/@vue/reactivity/dist/reactivity.global.js"></script>
+</head>
+
+<body>
+  <script>
+    const { reactive, shallowReactive, readonly, shallowReadonly } = VueReactivity
+
+      ; (function () {
+        const Reactive_Obj = reactive({
+          name: 'Reactive_Jaylen',
+          pet: {
+            name: "Reactive_Dog"
+          }
+        })
+        console.log('Reactive_Obj', Reactive_Obj)
+        console.log('Reactive_Obj.pet', Reactive_Obj.pet)
+
+        Reactive_Obj.name = 'Jaylen_Chan'
+        Reactive_Obj.pet.name = 'Dog_Pet'
+
+        console.log('Reactive_Obj', Reactive_Obj)
+        console.log('Reactive_Obj.pet', Reactive_Obj.pet)
+      }())
+
+      ; (function () {
+        const shallowReactive_Obj = shallowReactive({
+          name: 'ShallowReactive_Jaylen',
+          pet: {
+            name: "ShallowReactive_Dog"
+          }
+        })
+        console.log('shallowReactive_Obj', shallowReactive_Obj)
+        console.log('shallowReactive_Obj.pet', shallowReactive_Obj.pet)
+
+        shallowReactive_Obj.name = 'Jaylen_Chan'
+        shallowReactive_Obj.pet.name = 'Dog_Pet'
+
+        console.log('shallowReactive_Obj', shallowReactive_Obj)
+        console.log('shallowReactive_Obj.pet', shallowReactive_Obj.pet)
+
+      }())
+
+      ; (function () {
+        const Readonly_Obj = readonly({
+          name: 'Readonly_Jaylen',
+          pet: {
+            name: "Readonly_Dog"
+          }
+        })
+        console.log('Readonly_Obj', Readonly_Obj)
+        console.log('Readonly_Obj.pet', Readonly_Obj.pet)
+
+        Readonly_Obj.name = 'Jaylen_Chan'
+        Readonly_Obj.pet.name = 'Dog_Pet'
+
+        console.log('Readonly_Obj', Readonly_Obj)
+        console.log('Readonly_Obj.pet', Readonly_Obj.pet)
+      }())
+
+      ; (function () {
+        const ShallowReadonly_Obj = readonly({
+          name: 'ShallowReadonly_Jaylen',
+          pet: {
+            name: "ShallowReadonly_Dog"
+          }
+        })
+        console.log('ShallowReadonly_Obj', ShallowReadonly_Obj)
+        console.log('ShallowReadonly_Obj.pet', ShallowReadonly_Obj.pet)
+
+        ShallowReadonly_Obj.name = 'Jaylen_Chan'
+        ShallowReadonly_Obj.pet.name = 'Dog_Pet'
+
+        console.log('ShallowReadonly_Obj', ShallowReadonly_Obj)
+        console.log('ShallowReadonly_Obj.pet', ShallowReadonly_Obj.pet)
+      }())
+  </script>
+</body>
+
+</html>

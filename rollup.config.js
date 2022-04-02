@@ -39,6 +39,7 @@ function createBuildConfig(type, outputConfig) {
   if (type === 'global') {
     outputConfig.name = globalName
   }
+  outputConfig.sourcemap = true
   return {
     input: resolvePath('src/index.ts'),
     output: outputConfig,
