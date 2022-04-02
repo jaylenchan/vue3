@@ -1,11 +1,12 @@
 import { isObject } from './../../shared/src/index'
+import { collectDependency } from './effect'
 /**
  * 实现new Proxy(target, handlers)中的handlers
  * 如果是只读的（readonly），set应该报错
  * 是否深度的
  */
 
-import { createReactiveProxy, reactive, readonly } from './reactive'
+import { reactive, readonly } from './reactive'
 
 function createGetter({
   isReadonly,
@@ -24,6 +25,10 @@ function createGetter({
     if (!isReadonly) {
       // 如果这个对象不是只读的，那么在经过代理的时候就要进行依赖收集
       // 等会儿数据变化的时候，就需要对视图View进行更新了
+      // ⚠️：如果是只读的，没必要收集依赖。收集了，你是只读的也没法改变属性，没法改变属性你收集依赖的作用就失去了
+      // 因为收集依赖的目的就是为了属性改变之后触发effect重新更新视图
+      console.log('执行effect时会取值，然后收集依赖')
+      collectDependency(target, key)
     }
 
     if (isShallow) {

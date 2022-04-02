@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Effect</title>
+  <script src="../node_modules/@vue/reactivity/dist/reactivity.global.js"></script>
+
+</head>
+
+<body>
+  <script>
+    const { effect, reactive } = VueReactivity
+
+    const Reactive_Obj = reactive({
+      name: 'Reactive_Jaylen',
+      pet: {
+        name: 'Reactive_Dog'
+      }
+    })
+    effect(() => {
+      console.log(Reactive_Obj.name)
+    })
+
+    effect(() => {
+      console.log(Reactive_Obj.pet)
+    })
+
+  </script>
+</body>
+
+</html>
