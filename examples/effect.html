@@ -18,15 +18,24 @@
       name: 'Reactive_Jaylen',
       pet: {
         name: 'Reactive_Dog'
-      }
+      },
+      freinds: [1, 2, 3]
     })
     effect(() => {
       console.log(Reactive_Obj.name)
+      console.log(Reactive_Obj.freinds.length + Reactive_Obj.freinds[2])
+      console.log(Reactive_Obj.freinds)
     })
 
-    effect(() => {
-      console.log(Reactive_Obj.pet)
-    })
+    setTimeout(() => {
+      Reactive_Obj.name = 'SET Reactive_Jaylen'
+      Reactive_Obj.age = 10
+      // Reactive_Obj.freinds.push("ali")
+      // Reactive_Obj.freinds[0] = "taobao"
+      Reactive_Obj.freinds.length = 1
+      Reactive_Obj.freinds[100] = 1
+      console.log(Reactive_Obj.freinds.join(','))
+    }, 0)
 
   </script>
 </body>

@@ -1,9 +1,66 @@
+import { isArray, isIntegerKey } from '@vue/shared'
+import { EmitEvent } from './types'
+
+type IReactEffect = (...args: any[]) => any
 let uid = 0
-let activeEffect: (...args: any[]) => any
-const reactiveEffectStack: Array<(...args: any[]) => any> = []
+let activeEffect: (...args: any[]) => any // 当前正在运行的reactiveEffect
+const reactiveEffectStack: Array<IReactEffect> = []
+export const targetMap = new WeakMap<
+  Record<string, any>,
+  Map<string, Set<IReactEffect>>
+>()
+
+/** 触发更新，重新执行reactiveEffect */
+export function emit(
+  eventType: EmitEvent,
+  target: Record<string, any>,
+  key?: string,
+  newValue?: any,
+  oldValue?: any
+) {
+  /**
+   * 如果属性没有收集过依赖，那么直接返回
+   */
+  let dependenciesMap = targetMap.get(target)
+  if (!dependenciesMap) return
+
+  const reactiveEffectsCollectSet = new Set<IReactEffect>() // 待会将所有要执行的reactiveEffect集中到这里头，然后一起执行
+  const add = function (reactiveEffectsSet: Set<IReactEffect>) {
+    if (reactiveEffectsSet) {
+      // ⚠️：这个是一个Set做循环
+      reactiveEffectsSet.forEach((reactiveEffect) => {
+        reactiveEffectsCollectSet.add(reactiveEffect)
+      })
+    }
+  }
+  // 1. 看看修改的是不是数组的长度，因为改数组的长度影响是比较大的
+  if (isArray(target) && key === 'length') {
+    // 如果对应的长度有依赖收集就需要更新
+    // ⚠️：这是一个map循环，第一个是value，第二个就是key
+    dependenciesMap.forEach((reactiveEffectsSet, key) => {
+      // 如果更改的长度小于收集的索引，那么索引也需要触发effect重新执行
+      if (key === 'length' || key > newValue) {
+        add(reactiveEffectsSet)
+      }
+    })
+  } else {
+    // 可能是对象
+    if (key !== undefined) {
+      // 在这个地方肯定是修改，因为key存在
+      add(dependenciesMap.get(key) as Set<IReactEffect>)
+    }
+    // 如果修改了数组当中的某一个索引，怎么办？
+    switch (eventType) {
+      case EmitEvent.ADD: // 如果添加了一个索引，那就触发长度的更新
+        if (isArray(target) && isIntegerKey(key)) {
+          add(dependenciesMap.get('length') as Set<IReactEffect>)
+        }
+    }
+  }
+  reactiveEffectsCollectSet.forEach((reactiveEffect) => reactiveEffect())
+}
 /**
- * effect的实现目标：做到能够让函数fn里头的数据变化了，这整个函数就能够重新执行
- * 就好像函数fn是活的，一直在监听着自己里头的属性变化一样。
+ * createReactiveEffect就做了一件事：创建一个reactiveEffect，并返回这个reactiveEffect
  */
 function createReactiveEffect(
   fn: (...args: any[]) => any,
@@ -49,22 +106,19 @@ function createReactiveEffect(
 }
 
 /**
- *  key: { name: jaylen }
- *  value: Map
- *    -- key : name
- *    -- value: Set = [reactiveEffect, reactiveEffect]
- */
-const targetMap = new WeakMap()
-/**
- * 收集依赖
+ * 收集依赖的问题：如何知道现在准备建立联系的key对应的reactiveEffect是哪一个？并且获取到它来建立联系
+ * 解决的方式：设置一个activeEffect，在createReactiveEffect创建一个新的reactiveEffect时，给activeEffect赋值这个ractiveEffect
+ * 然后再收集依赖collectDependency的时候将activeEffect取出来用（可以理解成两者在进行通信）
  * collectDependency的实现目标：让对象中的某个属性，收集它对应的reactiveEffect函数，这个值放在了activeEffect
+ * 依赖收集其实就干了一件事：让key跟它的reactiveEffect建立联系（本质就是key跟放进effect中的那个函数fn建立联系）
+ * 因为reactiveEffect执行了，必定fn也执行。reactiveEffect其实就是在fn基础上，再包装了一些东西，做了额外操作（AOP思想）
  * */
-export function collectDependency(
-  target: Record<string | number, any>,
-  key: string | number
-) {
+export function collectDependency(target: Record<string, any>, key: string) {
   if (!activeEffect) {
-    //说明此属性key不需要收集，因为压根没在effect中用，直接返回即可
+    /**
+     * 要知道如果effect(() => { state.name })只要这么用，一定会产生一个reactiveEffect
+     * 这个activeEffect也是肯定有值的，如果没有说明肯定没在effect用
+     */
     return
   }
 
@@ -78,16 +132,15 @@ export function collectDependency(
    */
   let dependenciesMap = targetMap.get(target)
   if (!dependenciesMap) {
-    dependenciesMap = new Map()
+    dependenciesMap = new Map<string, Set<IReactEffect>>()
     targetMap.set(target, dependenciesMap)
   }
-
   /**
    * Set [reactiveEffect, reactiveEffect]
    */
   let reactiveEffectsSet = dependenciesMap.get(key)
   if (!reactiveEffectsSet) {
-    reactiveEffectsSet = new Set()
+    reactiveEffectsSet = new Set<IReactEffect>()
     dependenciesMap.set(key, reactiveEffectsSet)
   }
 
@@ -98,6 +151,13 @@ export function collectDependency(
   console.log('TargetMap', targetMap)
 }
 
+/**
+ * effect的实现目标：做到能够让函数fn里头的数据变化了，这整个函数就能够重新执行
+ * 要实现这个效果，必须想办法保存fn，将fn跟fn函数体里头使用的数据对应起来。
+ * 方法： 函数fn在执行的时候是会取值的，取值就会走proxy的handler中的get handler。
+ * 只需要在get当中让获取值的key属性，和使用的effect产生关联就可以解决对应的关系。其实术语叫做依赖收集
+ * 每次调用一次effect，都会重新创建createReactiveEffect一个新的reactiveEffect
+ */
 export function effect(fn: (...args: any[]) => any, options: Record<string, any> = {}) {
   const reactiveEffect = createReactiveEffect(fn, options)
 
