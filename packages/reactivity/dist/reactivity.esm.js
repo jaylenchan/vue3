@@ -381,5 +381,75 @@ function shallowReadonly(target) {
  * 要知道，通过这四种函数获取到的都是代理，通过代理去获取原始对象的值和设置原始对象的值
  */
 
-export { effect, reactive, readonly, shallowReactive, shallowReadonly };
+class RefImpl {
+    rawVal;
+    isShallow;
+    _value; // 只是声明一个属性，但是没有执行this.xx = xx
+    __v_isRef = true; // 表示是一个ref属性
+    //参数当中增加修饰符，表示这个属性被放到了实例当中，即声明了对应同名属性并且放到了this.同名属性 = 同名属性赋值
+    constructor(rawVal, isShallow) {
+        this.rawVal = rawVal;
+        this.isShallow = isShallow;
+        this._value = isShallow ? rawVal : convert(rawVal);
+    }
+    get value() {
+        // 取值就是使用xx.value，实际上会代理到_value
+        collectDependency(this, 'value');
+        return this._value;
+    }
+    set value(newVal) {
+        if (hasChanged(this.rawVal, newVal)) {
+            // 判断老值相对于新值是否有变化
+            this.rawVal = newVal; // 有变化的话，老的值变成新的值
+            this._value = this.isShallow ? newVal : convert(newVal);
+            emit(1 /* EDIT */, this, 'value', newVal);
+        }
+    }
+}
+class ObjectRefImpl {
+    target;
+    key;
+    __v_isRef = true;
+    constructor(target, key) {
+        this.target = target;
+        this.key = key;
+    }
+    get value() {
+        return this.target[this.key];
+    }
+    set value(newVal) {
+        this.target[this.key] = newVal;
+    }
+}
+function convert(value) {
+    return isObject(value) ? reactive(value) : value;
+}
+function createRef(value, isShallow = false) {
+    return new RefImpl(value, isShallow);
+}
+/**
+ * ref和reactive的区别：reactive内部采用的是proxy，而ref内部使用的是defineProperty
+ */
+function ref(value) {
+    // 将普通类型变成一个对象。当然也可以value是对象，但是对象一般用reactive
+    return createRef(value);
+}
+function shallowRef(value) {
+    return createRef(value, true);
+}
+/**
+ * toRef：可以将一个对象的属性，变成ref
+ */
+function toRef(target, key) {
+    return new ObjectRefImpl(target, key);
+}
+function toRefs(object) {
+    const result = isArray(object) ? new Array(object.length) : {};
+    for (let key in object) {
+        result[key] = toRef(object, key);
+    }
+    return result;
+}
+
+export { effect, reactive, readonly, ref, shallowReactive, shallowReadonly, shallowRef, toRef, toRefs };
 //# sourceMappingURL=reactivity.esm.js.map
