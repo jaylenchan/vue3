@@ -1,13 +1,18 @@
 import { isArray, isIntegerKey } from '@vue/shared'
 import { EmitEvent } from './types'
 
-type IReactEffect = (...args: any[]) => any
+type IReactiveEffect = ((...args: any[]) => any) & {
+  uid: number
+  _isEffect: boolean
+  options: Record<string, any>
+  raw: (...args: any[]) => any
+}
 let uid = 0
-let activeEffect: (...args: any[]) => any // 当前正在运行的reactiveEffect
-const reactiveEffectStack: Array<IReactEffect> = []
+let activeEffect: IReactiveEffect // 当前正在运行的reactiveEffect
+const reactiveEffectStack: Array<IReactiveEffect> = []
 export const targetMap = new WeakMap<
   Record<string, any>,
-  Map<string, Set<IReactEffect>>
+  Map<string, Set<IReactiveEffect>>
 >()
 
 /** 触发更新，重新执行reactiveEffect */
@@ -24,8 +29,8 @@ export function emit(
   let dependenciesMap = targetMap.get(target)
   if (!dependenciesMap) return
 
-  const reactiveEffectsCollectSet = new Set<IReactEffect>() // 待会将所有要执行的reactiveEffect集中到这里头，然后一起执行
-  const add = function (reactiveEffectsSet: Set<IReactEffect>) {
+  const reactiveEffectsCollectSet = new Set<IReactiveEffect>() // 待会将所有要执行的reactiveEffect集中到这里头，然后一起执行
+  const add = function (reactiveEffectsSet: Set<IReactiveEffect>) {
     if (reactiveEffectsSet) {
       // ⚠️：这个是一个Set做循环
       reactiveEffectsSet.forEach((reactiveEffect) => {
@@ -47,17 +52,23 @@ export function emit(
     // 可能是对象
     if (key !== undefined) {
       // 在这个地方肯定是修改，因为key存在
-      add(dependenciesMap.get(key) as Set<IReactEffect>)
+      add(dependenciesMap.get(key) as Set<IReactiveEffect>)
     }
     // 如果修改了数组当中的某一个索引，怎么办？
     switch (eventType) {
       case EmitEvent.ADD: // 如果添加了一个索引，那就触发长度的更新
         if (isArray(target) && isIntegerKey(key)) {
-          add(dependenciesMap.get('length') as Set<IReactEffect>)
+          add(dependenciesMap.get('length') as Set<IReactiveEffect>)
         }
     }
   }
-  reactiveEffectsCollectSet.forEach((reactiveEffect) => reactiveEffect())
+  reactiveEffectsCollectSet.forEach((reactiveEffect) => {
+    if (reactiveEffect.options.scheduler) {
+      reactiveEffect.options.scheduler(reactiveEffect)
+    } else {
+      reactiveEffect()
+    }
+  })
 }
 /**
  * createReactiveEffect就做了一件事：创建一个reactiveEffect，并返回这个reactiveEffect
@@ -132,7 +143,7 @@ export function collectDependency(target: Record<string, any>, key: string) {
    */
   let dependenciesMap = targetMap.get(target)
   if (!dependenciesMap) {
-    dependenciesMap = new Map<string, Set<IReactEffect>>()
+    dependenciesMap = new Map<string, Set<IReactiveEffect>>()
     targetMap.set(target, dependenciesMap)
   }
   /**
@@ -140,7 +151,7 @@ export function collectDependency(target: Record<string, any>, key: string) {
    */
   let reactiveEffectsSet = dependenciesMap.get(key)
   if (!reactiveEffectsSet) {
-    reactiveEffectsSet = new Set<IReactEffect>()
+    reactiveEffectsSet = new Set<IReactiveEffect>()
     dependenciesMap.set(key, reactiveEffectsSet)
   }
 

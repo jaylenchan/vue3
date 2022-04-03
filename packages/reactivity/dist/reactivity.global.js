@@ -12,6 +12,12 @@ var VueReactivity = (function (exports) {
    */
   const isArray = Array.isArray;
   /**
+   * 判断是不是函数
+   */
+  const isFunction = function (value) {
+      return typeof value === 'function';
+  };
+  /**
    * 判断是不是数字类型字符串
    */
   const isIntegerKey = function (value) {
@@ -87,7 +93,14 @@ var VueReactivity = (function (exports) {
                   }
           }
       }
-      reactiveEffectsCollectSet.forEach((reactiveEffect) => reactiveEffect());
+      reactiveEffectsCollectSet.forEach((reactiveEffect) => {
+          if (reactiveEffect.options.scheduler) {
+              reactiveEffect.options.scheduler(reactiveEffect);
+          }
+          else {
+              reactiveEffect();
+          }
+      });
   }
   /**
    * createReactiveEffect就做了一件事：创建一个reactiveEffect，并返回这个reactiveEffect
@@ -454,6 +467,52 @@ var VueReactivity = (function (exports) {
       return result;
   }
 
+  class ComputedRefImpl {
+      getter;
+      setter;
+      _dirty = true;
+      _value;
+      effect;
+      constructor(getter, setter) {
+          this.getter = getter;
+          this.setter = setter;
+          this.effect = effect(getter, {
+              lazy: true,
+              scheduler: () => {
+                  if (!this._dirty) {
+                      this._dirty = true;
+                  }
+              }
+          });
+      }
+      get value() {
+          if (this._dirty) {
+              this._value = this.effect();
+              this._dirty = false;
+          }
+          return this._value;
+      }
+      set value(newVal) {
+          this.setter(newVal);
+      }
+  }
+  function computed(params) {
+      let getter;
+      let setter;
+      if (isFunction(params)) {
+          getter = params;
+          setter = () => {
+              console.warn('computed param is readonly');
+          };
+      }
+      else {
+          getter = params.get;
+          setter = params.set;
+      }
+      return new ComputedRefImpl(getter, setter);
+  }
+
+  exports.computed = computed;
   exports.effect = effect;
   exports.reactive = reactive;
   exports.readonly = readonly;
