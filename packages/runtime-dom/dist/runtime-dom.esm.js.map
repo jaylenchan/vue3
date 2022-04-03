@@ -1,0 +1,1 @@
+{"version":3,"file":"runtime-dom.esm.js","sources":["../src/index.ts"],"sourcesContent":["export function runtime_dom() {}\n"],"names":[],"mappings":"AAAM,SAAU,WAAW,GAAA;;;;"}

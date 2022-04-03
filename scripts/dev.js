@@ -3,7 +3,7 @@
 
 const execa = require('execa')
 
-const PACKAGE = 'reactivity'
+const PACKAGE = 'runtime-dom'
 
 /** 构建一个包 */
 async function build(package) {
